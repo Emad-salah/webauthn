@@ -1,4 +1,3 @@
-
 /**
  * Dependencies
  * @ignore
@@ -8,189 +7,202 @@
  * Module Dependencies
  * @ignore
  */
-import base64url from './base64url'
+import base64url from "./base64url";
 
 /**
  * Client
  * @ignore
  */
 class Client {
-  constructor (options = {}) {
+  constructor(options = {}) {
     const defaults = {
-      pathPrefix: '/webauthn',
-      credentialEndpoint: '/register',
-      assertionEndpoint: '/login',
-      challengeEndpoint: '/response',
-      logoutEndpoint: '/logout',
-    }
+      pathPrefix: "/webauthn",
+      credentialEndpoint: "/register",
+      assertionEndpoint: "/login",
+      challengeEndpoint: "/response",
+      logoutEndpoint: "/logout"
+    };
 
-    Object.assign(this, defaults, options)
+    Object.assign(this, defaults, options);
   }
 
-  static publicKeyCredentialToJSON (pubKeyCred) {
+  static publicKeyCredentialToJSON(pubKeyCred) {
     if (ArrayBuffer.isView(pubKeyCred)) {
-      return Client.publicKeyCredentialToJSON(pubKeyCred.buffer)
+      return Client.publicKeyCredentialToJSON(pubKeyCred.buffer);
     }
 
     if (pubKeyCred instanceof Array) {
-      const arr = []
+      const arr = [];
 
       for (let i of pubKeyCred) {
-        arr.push(Client.publicKeyCredentialToJSON(i))
+        arr.push(Client.publicKeyCredentialToJSON(i));
       }
 
-      return arr
+      return arr;
     }
 
     if (pubKeyCred instanceof ArrayBuffer) {
-      return base64url.encode(pubKeyCred)
+      return base64url.encode(pubKeyCred);
     }
 
     if (pubKeyCred instanceof Object) {
-      const obj = {}
+      const obj = {};
 
       for (let key in pubKeyCred) {
-        obj[key] = Client.publicKeyCredentialToJSON(pubKeyCred[key])
+        obj[key] = Client.publicKeyCredentialToJSON(pubKeyCred[key]);
       }
 
-      return obj
+      return obj;
     }
 
-    return pubKeyCred
+    return pubKeyCred;
   }
 
-  static generateRandomBuffer (len) {
-    const buf = new Uint8Array(len || 32)
-    window.crypto.getRandomValues(buf)
-    return buf
+  static generateRandomBuffer(len) {
+    const buf = new Uint8Array(len || 32);
+    window.crypto.getRandomValues(buf);
+    return buf;
   }
 
-  static preformatMakeCredReq (makeCredReq) {
-    makeCredReq.challenge = base64url.decode(makeCredReq.challenge)
-    makeCredReq.user.id = base64url.decode(makeCredReq.user.id)
-    return makeCredReq
+  static preformatMakeCredReq(makeCredReq) {
+    makeCredReq.challenge = base64url.decode(makeCredReq.challenge);
+    makeCredReq.user.id = base64url.decode(makeCredReq.user.id);
+    return makeCredReq;
   }
 
-  static preformatGetAssertReq (getAssert) {
-    getAssert.challenge = base64url.decode(getAssert.challenge)
+  static preformatGetAssertReq(getAssert) {
+    getAssert.challenge = base64url.decode(getAssert.challenge);
 
     for (let allowCred of getAssert.allowCredentials) {
-      allowCred.id = base64url.decode(allowCred.id)
+      allowCred.id = base64url.decode(allowCred.id);
     }
 
-    return getAssert
+    return getAssert;
   }
 
-  async getMakeCredentialsChallenge (formBody) {
-    const response = await fetch(`${this.pathPrefix}${this.credentialEndpoint}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formBody)
-    })
+  async getMakeCredentialsChallenge(formBody) {
+    const response = await fetch(
+      `${this.pathPrefix}${this.credentialEndpoint}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formBody)
+      }
+    );
 
     if (response.status === 403) {
-      const failureMessage = (await response.json()).message
-      const errorMessage = 'Registration failed'
-      throw new Error(failureMessage ? `${errorMessage}: ${failureMessage}.` : `${errorMessage}.`)
+      const failureMessage = (await response.json()).message;
+      const errorMessage = "Registration failed";
+      throw new Error(
+        failureMessage
+          ? `${errorMessage}: ${failureMessage}.`
+          : `${errorMessage}.`
+      );
     }
 
     if (response.status < 200 || response.status > 205) {
-      throw new Error('Server responded with error.')
+      throw new Error("Server responded with error.");
     }
 
-    return await response.json()
+    return await response.json();
   }
 
-  async sendWebAuthnResponse (body) {
-    const response = await fetch(`${this.pathPrefix}${this.challengeEndpoint}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    })
+  async sendWebAuthnResponse(body) {
+    const response = await fetch(
+      `${this.pathPrefix}${this.challengeEndpoint}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      }
+    );
 
     if (response.status !== 200) {
-      throw new Error('Server responded with error.')
+      throw new Error("Server responded with error.");
     }
 
-    return await response.json()
+    return await response.json();
   }
 
-  async getGetAssertionChallenge (formBody) {
-    const response = await fetch(`${this.pathPrefix}${this.assertionEndpoint}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formBody)
-    })
+  async getGetAssertionChallenge(formBody) {
+    const response = await fetch(
+      `${this.pathPrefix}${this.assertionEndpoint}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formBody)
+      }
+    );
 
     if (response.status !== 200) {
-      throw new Error('Server responded with error.')
+      throw new Error("Server responded with error.");
     }
 
-    return await response.json()
+    return await response.json();
   }
 
-  async register (data = {}) {
+  async register(data = {}) {
     try {
-      const challenge = await this.getMakeCredentialsChallenge(data)
-      console.log('REGISTER CHALLENGE', challenge)
+      const challenge = await this.getMakeCredentialsChallenge(data);
+      console.log("REGISTER CHALLENGE", challenge);
 
-      const publicKey = Client.preformatMakeCredReq(challenge)
-      console.log('REGISTER PUBLIC KEY', publicKey)
+      const publicKey = Client.preformatMakeCredReq(challenge);
+      console.log("REGISTER PUBLIC KEY", publicKey);
 
-      const credential = await navigator.credentials.create({ publicKey })
-      console.log('REGISTER CREDENTIAL', credential)
+      const credential = await navigator.credentials.create({ publicKey });
+      console.log("REGISTER CREDENTIAL", credential);
 
-      const credentialResponse = Client.publicKeyCredentialToJSON(credential)
-      console.log('REGISTER RESPONSE', credentialResponse)
+      const credentialResponse = Client.publicKeyCredentialToJSON(credential);
+      console.log("REGISTER RESPONSE", credentialResponse);
 
-      return await this.sendWebAuthnResponse(credentialResponse)
-
+      return await this.sendWebAuthnResponse(credentialResponse);
     } catch (err) {
-      console.error(err)
+      console.error(err);
+      throw err;
     }
   }
 
-  async login (data = {}) {
+  async login(data = {}) {
     try {
-      const challenge = await this.getGetAssertionChallenge(data)
-      console.log('LOGIN CHALLENGE', challenge)
+      const challenge = await this.getGetAssertionChallenge(data);
+      console.log("LOGIN CHALLENGE", challenge);
 
-      const publicKey = Client.preformatGetAssertReq(challenge)
-      console.log('LOGIN PUBLIC KEY', publicKey)
+      const publicKey = Client.preformatGetAssertReq(challenge);
+      console.log("LOGIN PUBLIC KEY", publicKey);
 
-      const credential = await navigator.credentials.get({ publicKey })
-      console.log('LOGIN CREDENTIAL', credential)
+      const credential = await navigator.credentials.get({ publicKey });
+      console.log("LOGIN CREDENTIAL", credential);
 
-      const credentialResponse = Client.publicKeyCredentialToJSON(credential)
-      console.log('LOGIN RESPONSE', credentialResponse)
+      const credentialResponse = Client.publicKeyCredentialToJSON(credential);
+      console.log("LOGIN RESPONSE", credentialResponse);
 
-      return await this.sendWebAuthnResponse(credentialResponse)
-
+      return await this.sendWebAuthnResponse(credentialResponse);
     } catch (err) {
-      console.error(err)
+      console.error(err);
+      throw err;
     }
   }
 
-  async logout () {
+  async logout() {
     const response = await fetch(`${this.pathPrefix}${this.logoutEndpoint}`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+      method: "GET",
+      credentials: "include"
+    });
 
     if (response.status !== 200) {
-      throw new Error('Server responded with error.')
+      throw new Error("Server responded with error.");
     }
 
-    return await response.json()
+    return await response.json();
   }
 }
 
@@ -198,4 +210,4 @@ class Client {
  * Exports
  * @ignore
  */
-export default Client
+export default Client;
